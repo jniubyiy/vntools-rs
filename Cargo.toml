@@ -1,0 +1,20 @@
+[workspace]
+members = [
+    "common",
+    "ggp2png",
+    "sm2mpx10",
+    "cgd2bmp",
+    "arcx_unpack",
+    "ng3_unpack",
+    "mif_unpack",
+    "pak_unpack",
+    "opk_unpack",
+    "ifl_unpack",
+    "studio_sakura_unpack",
+    "succubus_arc_unpack",
+    "hiz_unpack",
+    "nekopunch_unpack",
+]
+
+[profile.release]
+rustflags = ["-C", "target-feature=+crt-static"]  # статическая сборка для Windows

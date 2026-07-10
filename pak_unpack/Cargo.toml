@@ -1,0 +1,8 @@
+[package]
+name = "pak_unpack"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+vntools_common = { path = "../common" }
+flate2 = "1.0"

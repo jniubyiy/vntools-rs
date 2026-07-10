@@ -2,7 +2,7 @@ use std::env;
 use std::fs::File;
 use std::io::{Read, Write, Seek, SeekFrom};
 use std::path::PathBuf;
-use vntools_common::{read_u32_le, check_magic};
+use vntools_common::{read_u32_le, read_u32_from_file, check_magic};
 
 const MAGIC: [u8; 16] = *b"VoiceOggPackFile";
 
@@ -38,27 +38,26 @@ fn unpack_opk(input: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     let count = read_u32_le(&header[16..20]) as usize;
 
     // Переходим в конец, находим позицию имён
-    file.seek(SeekFrom::End(-(count as i64 * 8)))?;
-    let name_start = file.stream_position()?;
+    let file_size = file.seek(SeekFrom::End(0))?;
+    let name_start = file_size - (count as u64 * 8);
 
     // Смещения записей находятся после 20 байт
     file.seek(SeekFrom::Start(20))?;
     let mut offsets = Vec::with_capacity(count + 1);
-    offsets.push(read_u32_le(&file.read_u32()?)?); // первое смещение
+    offsets.push(read_u32_from_file(&mut file)?); // первое смещение
     for _ in 1..count {
-        let off = read_u32_le(&file.read_u32()?)?;
+        let off = read_u32_from_file(&mut file)?;
         offsets.push(off);
     }
     // Последнее смещение = размер файла
-    let file_size = file.seek(SeekFrom::End(0))?;
     offsets.push(file_size as u32);
 
     let mut entries = Vec::with_capacity(count);
     for i in 0..count {
-        let name_bytes = &mut [0u8; 8];
+        let mut name_bytes = [0u8; 8];
         file.seek(SeekFrom::Start(name_start + i as u64 * 8))?;
-        file.read_exact(name_bytes)?;
-        let name = String::from_utf8_lossy(name_bytes)
+        file.read_exact(&mut name_bytes)?;
+        let name = String::from_utf8_lossy(&name_bytes)
             .trim_end_matches('\0')
             .to_string() + ".ogg";
         let offset = offsets[i] as u64;

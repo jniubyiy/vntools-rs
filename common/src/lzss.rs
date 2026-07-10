@@ -1,5 +1,3 @@
-use std::mem;
-
 const WINDOW_SIZE: usize = 4096;
 const START_POS: usize = 4078;
 
@@ -7,7 +5,6 @@ const START_POS: usize = 4078;
 /// Возвращает `Ok(())` при успехе, иначе ошибку.
 pub fn lzss_decompress(output: &mut [u8], input: &[u8]) -> Result<(), &'static str> {
     let mut window = [0u8; WINDOW_SIZE];
-    // Заполняем окно пробелами (0x20) как в C
     window.fill(0x20);
 
     let mut win_pos = START_POS;
@@ -19,13 +16,13 @@ pub fn lzss_decompress(output: &mut [u8], input: &[u8]) -> Result<(), &'static s
         let control = input[input_pos];
         input_pos += 1;
 
-        let mut bit = 1;
+        let mut bit = 1u16; // Используем u16, чтобы можно было дойти до 256
         while bit < 256 {
             if output_pos >= output_len || input_pos >= input.len() {
                 break;
             }
 
-            if (control & bit) != 0 {
+            if (control as u16 & bit) != 0 {
                 // Literal byte
                 let b = input[input_pos];
                 input_pos += 1;

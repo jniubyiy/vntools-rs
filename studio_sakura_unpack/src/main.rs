@@ -2,7 +2,7 @@ use std::env;
 use std::fs::File;
 use std::io::{Read, Write, Seek, SeekFrom};
 use std::path::PathBuf;
-use vntools_common::{read_u32_le, cp932::cp932_to_utf8};
+use vntools_common::{read_u32_le, read_u8_from_file, cp932::cp932_to_utf8};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -63,20 +63,20 @@ fn unpack_studio_sakura(input: &PathBuf) -> Result<(), Box<dyn std::error::Error
 
             let mut written = 0;
             while written < entry_size {
-                let control = file.read_u8()?;
-                let mut bit = 1;
+                let control = read_u8_from_file(&mut file)?;
+                let mut bit: u16 = 1;
                 while bit < 256 && written < entry_size {
-                    if (control & bit) != 0 {
-                        let b = file.read_u8()?;
+                    if (control as u16 & bit) != 0 {
+                        let b = read_u8_from_file(&mut file)?;
                         out_file.write_all(&[b])?;
                         window[win_pos] = b;
                         win_pos = (win_pos + 1) & 4095;
                         written += 1;
                     } else {
-                        let match_pos = file.read_u8()? as usize;
-                        let match_len = file.read_u8()? as usize;
-                        let match_pos = match_pos | ((match_len & 0xF0) << 4);
-                        let mut match_len = (match_len & 0x0F) + 3;
+                        let match_pos_raw = read_u8_from_file(&mut file)? as usize;
+                        let match_len_raw = read_u8_from_file(&mut file)? as usize;
+                        let mut match_pos = match_pos_raw | ((match_len_raw & 0xF0) << 4);
+                        let mut match_len = (match_len_raw & 0x0F) + 3;
                         while match_len > 0 && written < entry_size {
                             let b = window[match_pos];
                             out_file.write_all(&[b])?;
@@ -93,7 +93,7 @@ fn unpack_studio_sakura(input: &PathBuf) -> Result<(), Box<dyn std::error::Error
             println!("  Распакован: {}", out_name);
         } else {
             // Несжатый файл: копируем оставшиеся данные как есть
-            // Но мы уже прочитали 8 байт magic, нужно перемотать назад на 8 байт
+            // Перематываем назад на 8 байт (magic)
             file.seek(SeekFrom::Current(-8))?;
             let remaining = entry_size - (file.stream_position()? - entry_offset);
             let out_path = PathBuf::from(&out_name);

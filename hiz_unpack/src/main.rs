@@ -1,6 +1,6 @@
 use std::env;
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::{Read, Write, Seek, SeekFrom};
 use std::path::PathBuf;
 use vntools_common::{read_u32_le, lzss::lzss_decompress, bmp::write_bmp_rgb565};
 

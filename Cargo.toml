@@ -16,5 +16,7 @@ members = [
     "nekopunch_unpack",
 ]
 
+resolver = "2"
+
 [profile.release]
-rustflags = ["-C", "target-feature=+crt-static"]  # статическая сборка для Windows
+# Настройки статической линковки перенесены в .cargo/config.toml

@@ -1,8 +1,8 @@
 use std::env;
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::{Read, Write, Seek, SeekFrom};
 use std::path::PathBuf;
-use vntools_common::{read_u32_le, bmp::write_bmp_rgb565};
+use vntools_common::read_u32_le;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -30,13 +30,6 @@ fn convert_cgd(input: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     let width = read_u32_le(&header[12..16]);
     let height = read_u32_le(&header[16..20]);
 
-    // Остаток файла — это данные в формате RGBA (или что-то ещё), но C-код просто копирует их как есть.
-    // В оригинале cgd2bmp записывает их в BMP с заголовком, где используется BI_BITFIELDS для ARGB.
-    // Но так как мы не знаем точный формат, можно просто взять данные как есть и записать в BMP с 32 битами.
-    // Однако в C-коде делается fseek(bmp, 122, SEEK_SET); и while(size--) fputc(fgetc(cgd), bmp);
-    // Это значит, что они копируют байты после заголовка в BMP как есть, считая, что это уже готовые пиксели.
-    // Я просто скопирую оставшиеся данные в BMP 32-bit.
-
     let remaining = file.metadata()?.len() - file.stream_position()?;
     let mut pixel_data = vec![0u8; remaining as usize];
     file.read_exact(&mut pixel_data)?;
@@ -45,8 +38,6 @@ fn convert_cgd(input: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     let mut out_file = File::create(&out_path)?;
 
     // Простой BMP 32-bit (ARGB) без сжатия
-    // Заголовок: 14 + 40 = 54, плюс 4 маски? В C-коде они используют 122 байта с масками.
-    // Я сделаю 124 байта с масками для RGBA.
     let row_bytes = width as usize * 4;
     let stride = (row_bytes + 3) & !3;
     let data_size = stride * height as usize;

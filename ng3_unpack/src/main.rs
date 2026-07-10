@@ -1,8 +1,8 @@
 use std::env;
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::{Read, Write, Seek, SeekFrom};
 use std::path::PathBuf;
-use vntools_common::read_u32_le;
+use vntools_common::{read_u32_le, read_u8_from_file};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -33,7 +33,7 @@ fn convert_ng3(input: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     // Читаем палитру (256 цветов * 3 байта BGR)
     let mut palette = [[0u8; 3]; 256];
     for i in 0..256 {
-        palette[i] = [file.read_u8()?, file.read_u8()?, file.read_u8()?];
+        palette[i] = [read_u8_from_file(&mut file)?, read_u8_from_file(&mut file)?, read_u8_from_file(&mut file)?];
     }
 
     // Буфер для хранения 24-битных RGB пикселей (3 байта на пиксель)
@@ -42,19 +42,19 @@ fn convert_ng3(input: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     let mut written = 0;
 
     while written < pixel_count {
-        let c = file.read_u8()?;
+        let c = read_u8_from_file(&mut file)?;
         if c == 1 {
             // Одиночный пиксель по палитре
-            let _ = file.read_u8()?; // пропускаем один байт (обычно 1)
-            let idx = file.read_u8()? as usize;
+            let _ = read_u8_from_file(&mut file)?; // пропускаем один байт (обычно 1)
+            let idx = read_u8_from_file(&mut file)? as usize;
             let color = palette[idx];
             rgb_data.extend_from_slice(&color); // BGR
             written += 1;
         } else if c == 2 {
             // Повторяющийся пиксель по палитре
-            let _ = file.read_u8()?; // пропускаем один байт (обычно 2)
-            let idx = file.read_u8()? as usize;
-            let count = file.read_u8()? as usize;
+            let _ = read_u8_from_file(&mut file)?; // пропускаем один байт (обычно 2)
+            let idx = read_u8_from_file(&mut file)? as usize;
+            let count = read_u8_from_file(&mut file)? as usize;
             let color = palette[idx];
             for _ in 0..count {
                 rgb_data.extend_from_slice(&color);
@@ -63,9 +63,9 @@ fn convert_ng3(input: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
             }
         } else {
             // Прямые RGB пиксели (3 байта)
-            let r = file.read_u8()?;
-            let g = file.read_u8()?;
-            let b = file.read_u8()?;
+            let r = read_u8_from_file(&mut file)?;
+            let g = read_u8_from_file(&mut file)?;
+            let b = read_u8_from_file(&mut file)?;
             rgb_data.extend_from_slice(&[b, g, r]); // в BMP порядок BGR
             written += 1;
         }
@@ -84,7 +84,7 @@ fn convert_ng3(input: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     bmp.extend_from_slice(b"BM");
     bmp.extend(&(file_size as u32).to_le_bytes());
     bmp.extend(&[0, 0, 0, 0]);
-    bmp.extend(&(14 + 40).to_le_bytes());
+    bmp.extend(&((14 + 40) as u32).to_le_bytes());
 
     // BITMAPINFOHEADER
     bmp.extend(&(40u32).to_le_bytes());
@@ -106,7 +106,6 @@ fn convert_ng3(input: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
         let row_end = row_start + (width as usize * 3);
         let row_data = &rgb_data[row_start..row_end];
         row_buf[..row_data.len()].copy_from_slice(row_data);
-        // Остаток row_buf уже нули (инициализация)
         bmp.extend_from_slice(&row_buf);
     }
 

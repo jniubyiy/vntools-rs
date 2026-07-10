@@ -2,7 +2,7 @@ pub mod lzss;
 pub mod cp932;
 pub mod bmp;
 
-use std::io::{Read, Seek, SeekFrom};
+use std::io::{Read, Write};
 use std::fs::File;
 
 /// Читает u32 в little-endian из массива байт
@@ -20,6 +20,13 @@ pub fn read_u32_from_file(file: &mut File) -> Result<u32, std::io::Error> {
     let mut buf = [0u8; 4];
     file.read_exact(&mut buf)?;
     Ok(u32::from_le_bytes(buf))
+}
+
+/// Читает один байт из файла
+pub fn read_u8_from_file(file: &mut File) -> Result<u8, std::io::Error> {
+    let mut buf = [0u8; 1];
+    file.read_exact(&mut buf)?;
+    Ok(buf[0])
 }
 
 /// Проверяет магический заголовок

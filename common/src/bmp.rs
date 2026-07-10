@@ -12,7 +12,10 @@ pub fn write_bmp_palette<W: Write>(
 ) -> Result<(), std::io::Error> {
     let pixel_count = (width * height) as usize;
     if indices.len() < pixel_count {
-        return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Not enough indices"));
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "Not enough indices",
+        ));
     }
 
     let stride = ((width * 3 + 3) & !3) as usize; // padding to 4 bytes
@@ -25,7 +28,7 @@ pub fn write_bmp_palette<W: Write>(
     header.extend_from_slice(b"BM");
     header.extend(&(file_size as u32).to_le_bytes());
     header.extend(&[0, 0, 0, 0]); // reserved
-    header.extend(&(14 + 40 + 256 * 4).to_le_bytes()); // offset to pixels
+    header.extend(&((14 + 40 + 256 * 4) as u32).to_le_bytes()); // offset to pixels
 
     // BITMAPINFOHEADER
     header.extend(&(40u32).to_le_bytes());
@@ -62,8 +65,8 @@ pub fn write_bmp_palette<W: Write>(
             let col = &palette[idx as usize];
             let pos = x * 3;
             row_buffer[pos] = col[2]; // R
-            row_buffer[pos+1] = col[1]; // G
-            row_buffer[pos+2] = col[0]; // B
+            row_buffer[pos + 1] = col[1]; // G
+            row_buffer[pos + 2] = col[0]; // B
         }
         writer.write_all(&row_buffer)?;
     }
@@ -88,7 +91,7 @@ pub fn write_bmp_rgb565<W: Write>(
     header.extend_from_slice(b"BM");
     header.extend(&(file_size as u32).to_le_bytes());
     header.extend(&[0, 0, 0, 0]);
-    header.extend(&(14 + 40 + 12).to_le_bytes()); // offset
+    header.extend(&((14 + 40 + 12) as u32).to_le_bytes()); // offset
 
     // BITMAPINFOHEADER
     header.extend(&(40u32).to_le_bytes());
@@ -113,9 +116,9 @@ pub fn write_bmp_rgb565<W: Write>(
     // Пиксели (снизу вверх)
     let mut row_buf = vec![0u8; stride];
     for y in (0..height).rev() {
-        row_buf[..row_bytes].copy_from_slice(
-            &rgb565_data[((y * width) as usize * 2)..((y * width) as usize * 2 + row_bytes)]
-        );
+        let src_start = (y * width) as usize * 2;
+        let src_end = src_start + row_bytes;
+        row_buf[..row_bytes].copy_from_slice(&rgb565_data[src_start..src_end]);
         // Дополнение нулями уже в row_buf (инициализировано нулями)
         writer.write_all(&row_buf)?;
     }
